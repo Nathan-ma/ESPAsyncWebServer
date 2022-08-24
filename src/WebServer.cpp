@@ -46,7 +46,7 @@ AsyncWebServer::AsyncWebServer(uint16_t port)
     if(c == NULL)
       return;
 
-    AsyncWebServer* srv = (AsyncWebServer*)s;
+    AsyncWebServer* svr = (AsyncWebServer*)s;
     int freeHeap = ESP.getFreeHeap();
 
     if ( freeHeap < SERVER_FREE_HEAP_LEVEL_CRITICAL) {
