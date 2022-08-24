@@ -266,12 +266,12 @@ class AsyncWebServerRequest {
     bool hasParam(const __FlashStringHelper * data, bool post=false, bool file=false) const;
 
     AsyncWebParameter* getParam(const String& name, bool post=false, bool file=false) const;
-    AsyncWebParameter* getParam(const __FlashStringHelper * data, bool post, bool file) const; 
+    AsyncWebParameter* getParam(const __FlashStringHelper * data, bool post, bool file) const;
     AsyncWebParameter* getParam(size_t num) const;
 
     size_t args() const { return params(); }     // get arguments count
     const String& arg(const String& name) const; // get request argument value by name
-    const String& arg(const __FlashStringHelper * data) const; // get request argument value by F(name)    
+    const String& arg(const __FlashStringHelper * data) const; // get request argument value by F(name)
     const String& arg(size_t i) const;           // get request argument value by number
     const String& argName(size_t i) const;       // get request argument name by number
     bool hasArg(const char* name) const;         // check if argument exists
@@ -280,7 +280,7 @@ class AsyncWebServerRequest {
     const String& ASYNCWEBSERVER_REGEX_ATTRIBUTE pathArg(size_t i) const;
 
     const String& header(const char* name) const;// get request header value by name
-    const String& header(const __FlashStringHelper * data) const;// get request header value by F(name)    
+    const String& header(const __FlashStringHelper * data) const;// get request header value by F(name)
     const String& header(size_t i) const;        // get request header value by number
     const String& headerName(size_t i) const;    // get request header name by number
     String urlDecode(const String& text) const;
@@ -408,6 +408,7 @@ class AsyncWebServer {
     void begin();
     void end();
 
+    int numOfRequests = 0;
 #if ASYNC_TCP_SSL_ENABLED
     void onSslFileRequest(AcSSlFileHandler cb, void* arg);
     void beginSecure(const char *cert, const char *private_key_file, const char *password);
@@ -419,7 +420,7 @@ class AsyncWebServer {
 
     AsyncWebHandler& addHandler(AsyncWebHandler* handler);
     bool removeHandler(AsyncWebHandler* handler);
-  
+
     AsyncCallbackWebHandler& on(const char* uri, ArRequestHandlerFunction onRequest);
     AsyncCallbackWebHandler& on(const char* uri, WebRequestMethodComposite method, ArRequestHandlerFunction onRequest);
     AsyncCallbackWebHandler& on(const char* uri, WebRequestMethodComposite method, ArRequestHandlerFunction onRequest, ArUploadHandlerFunction onUpload);
@@ -431,17 +432,18 @@ class AsyncWebServer {
     void onFileUpload(ArUploadHandlerFunction fn); //handle file uploads
     void onRequestBody(ArBodyHandlerFunction fn); //handle posts with plain body content (JSON often transmitted this way as a request)
 
-    void reset(); //remove all writers and handlers, with onNotFound/onFileUpload/onRequestBody 
-  
+    void reset(); //remove all writers and handlers, with onNotFound/onFileUpload/onRequestBody
+
     void _handleDisconnect(AsyncWebServerRequest *request);
     void _attachHandler(AsyncWebServerRequest *request);
     void _rewriteRequest(AsyncWebServerRequest *request);
+    void _freeClient(AsyncClient* c);
 };
 
 class DefaultHeaders {
   using headers_t = LinkedList<AsyncWebHeader *>;
   headers_t _headers;
-  
+
   DefaultHeaders()
   :_headers(headers_t([](AsyncWebHeader *h){ delete h; }))
   {}
@@ -450,8 +452,8 @@ public:
 
   void addHeader(const String& name, const String& value){
     _headers.add(new AsyncWebHeader(name, value));
-  }  
-  
+  }
+
   ConstIterator begin() const { return _headers.begin(); }
   ConstIterator end() const { return _headers.end(); }
 

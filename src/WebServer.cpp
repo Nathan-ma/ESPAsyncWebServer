@@ -21,6 +21,10 @@
 #include "ESPAsyncWebServer.h"
 #include "WebHandlerImpl.h"
 
+#define SERVER_FREE_HEAP_LEVEL_CRITICAL (5*1024)
+#define SERVER_FREE_HEAP_LEVEL_HIGH (7*1024)
+#define MAX_NUM_OF_HTTP_REQUESTS 5
+
 bool ON_STA_FILTER(AsyncWebServerRequest *request) {
   return WiFi.localIP() == request->client()->localIP();
 }
@@ -41,18 +45,45 @@ AsyncWebServer::AsyncWebServer(uint16_t port)
   _server.onClient([](void *s, AsyncClient* c){
     if(c == NULL)
       return;
+
+    AsyncWebServer* srv = (AsyncWebServer*)s;
+    int freeHeap = ESP.getFreeHeap();
+
+    if ( freeHeap < SERVER_FREE_HEAP_LEVEL_CRITICAL) {
+      svr->_freeClient(c);
+      return;
+    }
+
     c->setRxTimeout(3);
-    AsyncWebServerRequest *r = new AsyncWebServerRequest((AsyncWebServer*)s, c);
+
+    AsyncWebServerRequest *r = new AsyncWebServerRequest(svr, c);
     if(r == NULL){
-      c->close(true);
-      c->free();
-      delete c;
+      svr->_freeClient(c);
+      return;
+    }
+
+    if (freeHeap < SERVER_FREE_HEAP_LEVEL_HIGH) {
+      r->send(500);
+      return;
+    }
+
+    if(srv->numOfRequests > MAX_NUM_OF_HTTP_REQUESTS) {
+      AsyncWebServerResponse *response = r->beginResponse(429);
+
+      if(!response) {
+        svr->_freeClient(c);
+        return;
+      }
+
+      response->addHeader("Retry-After", "1");
+
+      r->send(response);
     }
   }, this);
 }
 
 AsyncWebServer::~AsyncWebServer(){
-  reset();  
+  reset();
   end();
   if(_catchAllHandler) delete _catchAllHandler;
 }
@@ -118,11 +149,16 @@ void AsyncWebServer::_attachHandler(AsyncWebServerRequest *request){
       return;
     }
   }
-  
+
   request->addInterestingHeader("ANY");
   request->setHandler(_catchAllHandler);
 }
 
+void AsyncWebServer::_freeClient(AsyncClient* c) {
+  c->close(true);
+  c->free();
+  delete c;
+}
 
 AsyncCallbackWebHandler& AsyncWebServer::on(const char* uri, WebRequestMethodComposite method, ArRequestHandlerFunction onRequest, ArUploadHandlerFunction onUpload, ArBodyHandlerFunction onBody){
   AsyncCallbackWebHandler* handler = new AsyncCallbackWebHandler();
@@ -183,7 +219,7 @@ void AsyncWebServer::onRequestBody(ArBodyHandlerFunction fn){
 void AsyncWebServer::reset(){
   _rewrites.free();
   _handlers.free();
-  
+
   if (_catchAllHandler != NULL){
     _catchAllHandler->onRequest(NULL);
     _catchAllHandler->onUpload(NULL);
