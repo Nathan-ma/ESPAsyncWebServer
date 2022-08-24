@@ -67,7 +67,7 @@ AsyncWebServer::AsyncWebServer(uint16_t port)
       return;
     }
 
-    if(srv->numOfRequests > MAX_NUM_OF_HTTP_REQUESTS) {
+    if(svr->numOfRequests > MAX_NUM_OF_HTTP_REQUESTS) {
       AsyncWebServerResponse *response = r->beginResponse(429);
 
       if(!response) {
